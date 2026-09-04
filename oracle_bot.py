@@ -10,7 +10,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ---------- ВАШ ТОКЕН (получить у @BotFather) ----------
-TOKEN = "8816274174:AAEIkBBsAxcY_1OXi6OTgwtzk-lzI9DAdiQ"
+TOKEN = "8816274174:AAEENQCe3bbtjbtT0hUfqyczyYvt4KDtzvQ"
 # --------------------------------------------------------
 
 # ---------- ТЕКСТЫ ЗАГОВОРОВ (точно по материалам) ----------
