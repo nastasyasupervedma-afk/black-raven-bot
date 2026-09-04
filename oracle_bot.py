@@ -1,6 +1,9 @@
 import logging
+import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import threading
 
 # Настройка логирования
 logging.basicConfig(
@@ -9,11 +12,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ---------- ВАШ ТОКЕН (получить у @BotFather) ----------
-TOKEN = "8816274174:AAEENQCe3bbtjbtT0hUfqyczyYvt4KDtzvQ"
+# ---------- ТОКЕН (лучше вынести в переменную окружения) ----------
+TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "8816274174:AAEENQCe3bbtjbtT0hUfqyczyYvt4KDtzvQ")
+# Если ты добавишь переменную на Render, код будет использовать её.
+# Если нет – использует токен, который прописан здесь.
 # --------------------------------------------------------
 
-# ---------- ТЕКСТЫ ЗАГОВОРОВ (точно по материалам) ----------
+# ---------- ТЕКСТЫ ЗАГОВОРОВ (без изменений) ----------
 SPELLS = {
     "feminine": {
         "name": "🌙 Красота и женственность",
@@ -75,9 +80,8 @@ SPELLS = {
     }
 }
 
-# ---------- ОБРАБОТЧИКИ ----------
+# ---------- ОБРАБОТЧИКИ (без изменений) ----------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Главное меню — выбор того, чего хочет душенька."""
     keyboard = [
         [InlineKeyboardButton("🌙 Красота и женственность", callback_data="feminine")],
         [InlineKeyboardButton("🍀 Пути-дороги", callback_data="roads")],
@@ -96,7 +100,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 async def intuition_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Подменю для колдовской силы: огонь или вода."""
     query = update.callback_query
     await query.answer()
     keyboard = [
@@ -113,7 +116,6 @@ async def intuition_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     )
 
 async def show_spell(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Показывает конкретный заговор."""
     query = update.callback_query
     await query.answer()
     spell_key = query.data
@@ -121,7 +123,6 @@ async def show_spell(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     if not spell:
         await query.edit_message_text("❌ Такого заговора нет.")
         return
-
     text = (
         f"**{spell['name']}**\n\n"
         f"📖 **Как выполнять:**\n{spell['instruction']}\n\n"
@@ -137,7 +138,6 @@ async def show_spell(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     )
 
 async def main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Возврат в главное меню."""
     query = update.callback_query
     await query.answer()
     keyboard = [
@@ -157,14 +157,28 @@ async def main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         parse_mode="Markdown"
     )
 
-def main():
-    application = Application.builder().token(TOKEN).build()
+# ---------- HTTP-сервер для Render (чтобы не было ошибки порта) ----------
+def run_http_server():
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"OK")
+    server = HTTPServer(('0.0.0.0', int(os.environ.get("PORT", 10000))), Handler)
+    server.serve_forever()
 
+# ---------- ЗАПУСК ----------
+def main():
+    # Запускаем HTTP-сервер в отдельном потоке
+    thread = threading.Thread(target=run_http_server, daemon=True)
+    thread.start()
+
+    # Запускаем Telegram-бота
+    application = Application.builder().token(TOKEN).build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(intuition_menu, pattern="^intuition_menu$"))
     application.add_handler(CallbackQueryHandler(show_spell, pattern="^(feminine|roads|intuition_fire|intuition_water)$"))
     application.add_handler(CallbackQueryHandler(main_menu, pattern="^main_menu$"))
-
     print("🔮 Бот Векши Настасьи запущен. Ожидание сообщений...")
     application.run_polling()
 
